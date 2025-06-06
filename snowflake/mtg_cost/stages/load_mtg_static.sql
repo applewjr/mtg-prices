@@ -1,0 +1,4 @@
+COPY INTO MTG_COST.PUBLIC.MTG_STATIC
+FROM @s3_mtg_static_stage/year=2025/month=05/day=30/all_cards_static_20250530.parquet
+FILE_FORMAT = (TYPE = 'PARQUET')
+MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
