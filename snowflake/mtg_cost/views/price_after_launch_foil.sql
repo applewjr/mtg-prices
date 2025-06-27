@@ -1,8 +1,8 @@
-CREATE OR REPLACE VIEW price_after_launch AS
+CREATE OR REPLACE VIEW price_after_launch_foil AS
 
 SELECT
  DATEDIFF(day, static.released_at, prices.pull_date) AS date_diff
-,AVG(prices.usd) AS avg_usd
+,AVG(prices.usd_foil) AS avg_usd
 ,static.set_name
 FROM mtg_static AS static
 LEFT JOIN mtg_prices AS prices ON static.id = prices.id
