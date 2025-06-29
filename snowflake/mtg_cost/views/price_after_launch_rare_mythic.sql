@@ -7,17 +7,9 @@ SELECT
 FROM mtg_static AS static
 LEFT JOIN mtg_prices AS prices ON static.id = prices.id
 WHERE 1=1
-    AND static.set_name IN (
-         'Tarkir: Dragonstorm'
-        ,'Aetherdrift'
-        ,'Duskmourn: House of Horror'
-        ,'Bloomburrow'
-        ,'Final Fantasy'
-        )
-    -- AND static.set_name = 'Final Fantasy'
     AND static.rarity IN ('mythic', 'rare')
     AND static.set_type IN ('expansion')
-    -- AND YEAR(static.released_at) IN ('2025')
+    AND static.released_at >= '2024-08-02' -- starting with Bloomburrow
     AND date_diff >= 1
     AND date_diff <= 300
 GROUP BY date_diff, static.set_name
