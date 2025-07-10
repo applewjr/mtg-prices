@@ -7,7 +7,7 @@
 ![MTG Data Pipeline](docs/streamlit_dashboard.png)
 
 ## Project Description
-Be able to discover long-term trends in all Magic: The Gathering cards. Especially in terms of card price over time. All tasks are fully end to end automated.
+Be able to discover long-term trends in all Magic: The Gathering cards. Especially in terms of card price over time. All tasks are fully end-to-end automated.
 
 ## Impact
 - Processes 90K+ card records daily
@@ -17,10 +17,10 @@ Be able to discover long-term trends in all Magic: The Gathering cards. Especial
 ## Solution - Why did I build it?
 
 ### Education
-I wanted to build an end to end data pipeline on a topic I found to be interesting. In particular, I wanted the pipeline to be fully automated. I wake up to refreshed visualizations and status updates into my email.
+I wanted to build an end-to-end data pipeline on a topic I found to be interesting. In particular, I wanted the pipeline to be fully automated. I wake up to refreshed visualizations and status updates into my email.
 
 ### Insight
-This aggregation of data does replicate some insights that can be found elsewhere, but also gives me the flexibility to visualize the data on demand in interesting ways I have not found to be available elsewhere (TCGplayer is a great example), such as prices normalized to each set's respective release date. The Final Fantasy set in particular has been very exciting to track every day, as it has been an extreme outlier compared to the sets that came before it.
+This aggregation of data does replicate some insights that can be found elsewhere (TCGplayer is a great example), but also gives me the flexibility to visualize the data on demand in interesting ways I have not found to be available elsewhere, such as prices normalized to each set's respective release date. The Final Fantasy set in particular has been very exciting to track every day, as it has been an extreme outlier compared to the sets that came before it.
 
 ## Key Technologies
 - AWS
