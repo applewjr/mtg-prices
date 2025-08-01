@@ -83,7 +83,7 @@ Despite the event of data loss being unlikely, the damage of data loss would be 
 
 #### Streamlit - https://mtg-price-dashboard.streamlit.app
 - Dashboard repo: https://github.com/applewjr/mtg-price-dashboard
-- My first of 3 front end visualizations. Here, I present a dashboard of interesting graphs centering around card prices per set, normalized to before and after release date.
+- My first of 3 frontend visualizations. Here, I present a dashboard of interesting graphs centering around card prices per set, normalized to before and after release date.
 - Source data are fully driven by Snowflake.
 - This frontend was originally designed to give the end user the ability to see the price history for any card. I have removed this option since it is an expensive feature to put into the hands of the open internet. The dashboard I have left in place is static and can be cached for 24 hours without being out of date. This leads to a maximum of 60 seconds of compute per day against Snowflake.
 
@@ -104,12 +104,12 @@ Snowflake's data compression is amazing to see. I leaned into Snowflake because 
 Given the little tolerance for a lost day of data, my failsafe is to disable my S3 lifecycle rule which deletes the raw JSON data after 1 day. This allows me to troubleshoot any issues without threat of data loss. This has happened once before when a lambda shot up in processing time, leading to 15 minute timeouts. I retained raw data for a few days while I implemented Python's ijson package to convert JSON to CSV in a more memory efficient manner. All functions also use a standard get_dates() function which allows me to plug in a historic date for older data processing.
 
 ### Technology Pivot: DynamoDB to Athena
-I originally aimed to use DynamoDB instead of Athena. I made this decision because NoSQL databases seemed new and cool. After getting my ingestion pipeline running, I realized the cost of data inserts was ~$0.1 per day, which was more than I anticipated. I could decrease the cost by inserting records more slowly, but I then hit lambda max time limitations. Even worse, I realized the downstream querying of data could be catastrophically expensive. For this reason, I shifted to a good old fashioned traditional style database like Athena. My Athena query costs do not even register $0.01 of expense per month and my S3 GET requests cost $0.01 per month, particularly due to my daily file storage strategy.
+I originally aimed to use DynamoDB instead of Athena. I made this decision because NoSQL databases seemed new and cool. After getting my ingestion pipeline running, I realized the cost of data inserts was ~$0.1 per day, which was more than I anticipated. I could decrease the cost by inserting records more slowly, but I then hit lambda max time limitations. Even worse, I realized the downstream querying of data could be catastrophically expensive. For this reason, I shifted to a good old fashioned relational database like Athena. My Athena query costs do not even register $0.01 of expense per month and my S3 GET requests cost $0.01 per month, particularly due to my daily file storage strategy.
 
 ## Future Enhancements
 
 ### Enhanced Static Data
-Over time, I have learned to appreciate the depth of static information available in the Scryfall API and its value to highly flexible data analysis. My current static table contains 14 columns. I have mapped about ~100 that should be included in my static table. The processing increase will be minimal as I already receive, then reject, the additional fields. The data store increase will be minimal as I upsert weekly and do not have to retain older duplicate records. I have inserted an ad hoc mock up table into Snowflake and have first hand experience getting to enjoy the depth of information available.
+Over time, I have learned to appreciate the depth of static information available in the Scryfall API and its value to highly flexible data analysis. My current static table contains 14 columns. I have mapped ~100 columns that should be included in my static table. The processing increase will be minimal as I already receive, then reject, the additional fields. The data store increase will be minimal as I upsert weekly and do not have to retain older duplicate records. I have inserted an ad hoc mock up table into Snowflake and have first hand experience getting to enjoy the depth of information available.
 
 ### Pipeline Optimization
 The intermediate step of CSV conversion was a safety net while I got my footing in parquet style formats. This is now an artifact and could be done away with, shifting to direct JSON to parquet conversion.
