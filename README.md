@@ -1,7 +1,7 @@
 # MTG Price Tracking Pipeline
 
 *End-to-end data pipeline architecture processing 90K+ records daily*
-![MTG Data Pipeline](docs/mtg_pipeline.png)
+![MTG Data Pipeline](docs/mtg_pipeline2.png)
 
 *Daily price tracking dashboard showing normalized trends across MTG sets*
 ![MTG Data Pipeline](docs/streamlit_dashboard.png)
@@ -29,6 +29,8 @@ This aggregation of data does replicate some insights that can be found elsewher
   - EventBridge
   - Athena
   - S3
+  - EMR Serverless
+  - PySpark
   - CloudFront
   - SNS
   - SQS
@@ -49,11 +51,9 @@ This aggregation of data does replicate some insights that can be found elsewher
 
 #### Daily pipeline
 - Daily at 4am PST, kick off a step function which runs a series of lambdas, prompted by an EventBridge schedule.
-- **Lambda: Pull Data** - Tap into the Scryfall API for daily bulk card data, including current prices.
-- **Lambda: Convert JSON to CSV** - Pare down the full dataset down to choice fields per card.
-  - CSV files were originally used as I was familiarizing myself with parquet formats. These are now an artifact that are not actively used.
-- **Lambda: Convert CSV to Parquet** - 1:1 conversion with an SNS status notification.
-  - Some light parameterization, such as row group size of 2000, which seemed to accent the ~90K rows well.
+- **Lambda: Pull JSON Data** - Tap into the Scryfall API for daily bulk card data, including current prices.
+- **EMR Serverless: Convert JSON to Parquet** - Pare down the full dataset down to choice fields per card.
+  - SNS notification on success/fail
 - **Lambda: Add Athena Partitions** - Add the new data to my iceberg table, ensuring no duplicates will be inserted. Another SNS message is sent.
   - Apache Iceberg format is used for my price table. I used iceberg as an educational opportunity. Day to day I could get away with my standard table, which is still driven by parquet files.
 - **Lambda Query Athena** - Now that Athena has the newest data, run my query against the tables, store the partially processed data.
@@ -61,11 +61,6 @@ This aggregation of data does replicate some insights that can be found elsewher
   - Horizontal slice queries, 1 card for all dates, are handled in Snowflake, as they would be highly inefficient and expensive in Athena.
 - **Lambda Final Data Processing** - Take the stored data and run some more complex transforms.
   - In theory, these transforms could have all been done in SQL. I found it more accessible to use python for part of the transform process.
-
-#### Weekly pipeline
-- Weekly at 4:30am PST, kick off a step function which runs a series of lambdas, prompted by an EventBridge schedule.
-- This pipeline is only for unchanging card data, such as set name, so this pipeline is only to pick up new cards.
-- Reuse the following Lambdas: Convert JSON to CSV, Convert CSV to parquet, Add Athena Partitions.
 
 #### CloudFront
 - Serves the final processed data CSV to my Heroku instance. The CSV is replaced daily into the same location.
@@ -102,6 +97,9 @@ Snowflake's data compression is amazing to see. I leaned into Snowflake because 
 
 ### Data Recovery Strategy
 Given the little tolerance for a lost day of data, my failsafe is to disable my S3 lifecycle rule which deletes the raw JSON data after 1 day. This allows me to troubleshoot any issues without threat of data loss. This has happened once before when a lambda shot up in processing time, leading to 15 minute timeouts. I retained raw data for a few days while I implemented Python's ijson package to convert JSON to CSV in a more memory efficient manner. All functions also use a standard get_dates() function which allows me to plug in a historic date for older data processing.
+
+### Technology Pivot: Lambda to EMR Serverless
+The lambda timeout on JSON to Parquet was a solid warning to me that lambdas aren't meant to parse big JSON docs. My implementation of ijson was a temporary fix at best. I have since shifted the JSON parsing to EMR Serverless/PySpark. This is more costly by a few cents per day, but this method is going to scale over time as the number of Magic cards continually increases. I also used this opportunity to do away with my intermediate CSV conversion step.
 
 ### Technology Pivot: DynamoDB to Athena
 I originally aimed to use DynamoDB instead of Athena. I made this decision because NoSQL databases seemed new and cool. After getting my ingestion pipeline running, I realized the cost of data inserts was ~$0.1 per day, which was more than I anticipated. I could decrease the cost by inserting records more slowly, but I then hit lambda max time limitations. Even worse, I realized the downstream querying of data could be catastrophically expensive. For this reason, I shifted to a good old fashioned relational database like Athena. My Athena query costs do not even register $0.01 of expense per month and my S3 GET requests cost $0.01 per month, particularly due to my daily file storage strategy.
