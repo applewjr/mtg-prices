@@ -50,9 +50,10 @@ This aggregation of data does replicate some insights that can be found elsewher
 ### AWS
 
 #### Daily pipeline
-- Daily at 4am PST, kick off a step function which runs a series of lambdas, prompted by an EventBridge schedule.
+- Daily at 4am PST, kick off a step function which runs a series of lambdas and EMR Serverless, prompted by an EventBridge schedule.
 - **Lambda: Pull JSON Data** - Tap into the Scryfall API for daily bulk card data, including current prices.
 - **EMR Serverless: Convert JSON to Parquet** - Pare down the full dataset down to choice fields per card.
+  - 2 Parquet are created. 1 for daily prices and 1 for static values like name and set.
   - SNS notification on success/fail
 - **Lambda: Add Athena Partitions** - Add the new data to my iceberg table, ensuring no duplicates will be inserted. Another SNS message is sent.
   - Apache Iceberg format is used for my price table. I used iceberg as an educational opportunity. Day to day I could get away with my standard table, which is still driven by parquet files.
