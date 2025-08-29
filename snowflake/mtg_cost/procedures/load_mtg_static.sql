@@ -19,17 +19,18 @@ BEGIN
     
     -- Build dynamic file path
     file_path := '@s3_mtg_static_stage/year=' || YEAR(load_date) || 
-                 '/month=' || LPAD(MONTH(load_date), 2, '0') || 
-                 '/day=' || LPAD(DAY(load_date), 2, '0') || 
-                 '/all_cards_static_' || current_date_str || '.parquet';
-    
+                '/month=' || LPAD(MONTH(load_date), 2, '0') || 
+                '/day=' || LPAD(DAY(load_date), 2, '0') || 
+                '/';
+
     -- Step 1: Create temporary staging table
     CREATE OR REPLACE TEMPORARY TABLE temp_mtg_static_weekly LIKE MTG_COST.PUBLIC.MTG_STATIC;
     
     -- Step 2: Load new data into staging table using dynamic path
     EXECUTE IMMEDIATE 'COPY INTO temp_mtg_static_weekly FROM ' || file_path || 
-                     ' FILE_FORMAT = (TYPE = ''PARQUET'') MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE';
-    
+                    ' PATTERN = ''.*\.parquet$'' ' ||
+                    ' FILE_FORMAT = (TYPE = ''PARQUET'') MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE';
+
     -- Step 3: Merge from staging table with date-based logic
     MERGE INTO MTG_COST.PUBLIC.MTG_STATIC AS target
     USING temp_mtg_static_weekly AS source
