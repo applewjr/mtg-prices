@@ -1,26 +1,30 @@
-# MTG Price Tracking Pipeline
+# Financial Data Analytics Platform (Magic: The Gathering)
 
 *End-to-end data pipeline architecture processing 90K+ records daily*
 ![MTG Data Pipeline](docs/mtg_pipeline2.png)
 
-*Daily price tracking dashboard showing normalized trends across MTG sets*
+*Interactive analytics dashboard with normalized time-series trend analysis*
 ![MTG Data Pipeline](docs/streamlit_dashboard.png)
 
 ## Project Description
-Be able to discover long-term trends in all Magic: The Gathering cards. Especially in terms of card price over time. All tasks are fully end-to-end automated.
+Production-scale financial data platform providing automated market intelligence across 90K+ cards. Processes daily price updates and maintains comprehensive historical dataset serving multiple applications with sub-dollar operational costs.
 
-## Impact
-- Processes 90K+ card records daily
-- Tracks 30M+ price data points across >1 year of historical data
-- Delivers insights via web dashboard, mobile app, and automated social media
+## Key Achievements
+- Engineered cost-optimized data pipeline: 30M+ price records maintained at <$1/month operational cost  
+- Reduced infrastructure costs 90%+ through strategic database migration (DynamoDB → Athena)
+- Eliminated processing bottlenecks via distributed computing architecture (Lambda → EMR Serverless)
+- Built automated multi-platform distribution: web dashboards, mobile apps, social media integration
 
-## Solution - Why did I build it?
+## Live Demos
 
-### Education
-I wanted to build an end-to-end data pipeline on a topic I found to be interesting. In particular, I wanted the pipeline to be fully automated. I wake up to refreshed visualizations and status updates into my email.
+### 📊 [Streamlit Dashboard](https://mtg-price-dashboard.streamlit.app/)
+Interactive price analytics dashboard with set-normalized trend analysis
 
-### Insight
-This aggregation of data does replicate some insights that can be found elsewhere (TCGplayer is a great example), but also gives me the flexibility to visualize the data on demand in interesting ways I have not found to be available elsewhere, such as prices normalized to each set's respective release date. The Final Fantasy set in particular has been very exciting to track every day, as it has been an extreme outlier compared to the sets that came before it.
+### 🌐 [Daily Price Tracker](https://www.jamesapplewhite.com/mtg)
+Real-time top/bottom price movers updated daily via CloudFront
+
+### 🐦 [Twitter Bot](https://x.com/J_R_Applewhite)
+Automated daily tweets highlighting notable price changes
 
 ## Key Technologies
 - AWS
@@ -52,7 +56,7 @@ This aggregation of data does replicate some insights that can be found elsewher
 #### Daily pipeline
 - Daily at 4am PST, kick off a step function which runs a series of lambdas and EMR Serverless, prompted by an EventBridge schedule.
 - **Lambda: Pull JSON Data** - Tap into the Scryfall API for daily bulk card data, including current prices.
-- **EMR Serverless: Convert JSON to Parquet** - Pare down the full dataset down to choice fields per card.
+- **EMR Serverless/PySpark: Convert JSON to Parquet** - Pare down the full dataset down to choice fields per card.
   - 2 Parquet are created. 1 for daily prices and 1 for static values like name and set.
   - SNS notification on success/fail
 - **Lambda: Add Athena Partitions** - Add the new data to my iceberg table, ensuring no duplicates will be inserted. Another SNS message is sent.
@@ -110,19 +114,5 @@ I originally aimed to use DynamoDB instead of Athena. I made this decision becau
 ### Enhanced Static Data
 Over time, I have learned to appreciate the depth of static information available in the Scryfall API and its value to highly flexible data analysis. My current static table contains 14 columns. I have mapped ~100 columns that should be included in my static table. The processing increase will be minimal as I already receive, then reject, the additional fields. The data store increase will be minimal as I upsert weekly and do not have to retain older duplicate records. I have inserted an ad hoc mock up table into Snowflake and have first hand experience getting to enjoy the depth of information available.
 
-### Pipeline Optimization
-The intermediate step of CSV conversion was a safety net while I got my footing in parquet style formats. This is now an artifact and could be done away with, shifting to direct JSON to parquet conversion.
-
 ### Data Source Resilience
 I have been burned by APIs that choose to limit their data availability (Thanks, Spotify). Scryfall has been a 100% reliable daily data source so far, but that is not a guarantee forever. I must find an alternate data source that I could cut over to should Scryfall revise their offering or cease to exist. mtgjson.com appears to be a promising source, however both mtgjson and Scryfall rely on TCGplayer.
-
-## Live Demos
-
-### 📊 [Streamlit Dashboard](https://mtg-price-dashboard.streamlit.app/)
-Interactive price analytics dashboard with set-normalized trend analysis
-
-### 🌐 [Daily Price Tracker](https://www.jamesapplewhite.com/mtg)
-Real-time top/bottom price movers updated daily via CloudFront
-
-### 🐦 [Twitter Bot](https://x.com/J_R_Applewhite)
-Automated daily tweets highlighting notable price changes
