@@ -85,12 +85,8 @@ def main():
         # Unpersist cached data
         df_raw.unpersist()
         
-        # Send success notification
-        send_sns_notification(daily_count, static_count, daily_parquet_key, static_parquet_key, bucket_name, topic_arn)
-        
     except Exception as e:
         print(f"Error processing data: {str(e)}")
-        send_failure_notification(str(e), topic_arn)
         raise e
     finally:
         spark.stop()
@@ -136,52 +132,6 @@ def process_static_fields(df_raw, pull_date):
                          .withColumn("cardmarket_id", col("cardmarket_id").cast("double"))
     
     return df_final
-
-def send_sns_notification(daily_count, static_count, daily_key, static_key, bucket_name, topic_arn):
-    try:
-        if topic_arn:
-            sns_client = boto3.client('sns', region_name='us-west-2')
-            message = {
-                'default': 'This is the default message',
-                'email': f"""Daily Parquet row count = {daily_count}
-Daily Parquet file created at: s3://{bucket_name}/{daily_key}
-
-Static Parquet row count = {static_count}
-Static Parquet file created at: s3://{bucket_name}/{static_key}"""
-            }
-            
-            response = sns_client.publish(
-                TopicArn=topic_arn,
-                Message=json.dumps(message),
-                MessageStructure='json'
-            )
-            print(f"SNS message sent. Response: {response}")
-        else:
-            print("No topic_arn provided, skipping SNS notification")
-            
-    except Exception as e:
-        print(f"Error sending SNS notification: {str(e)}")
-        # Don't fail the job for SNS errors
-
-def send_failure_notification(error_message, topic_arn):
-    """Send failure SNS notification"""
-    try:
-        if topic_arn:
-            sns_client = boto3.client('sns', region_name='us-west-2')
-            message = {
-                'default': 'This is the default message',
-                'email': f'Error occurred during processing: {error_message}'
-            }
-            
-            sns_client.publish(
-                TopicArn=topic_arn,
-                Message=json.dumps(message),
-                MessageStructure='json'
-            )
-            print("Failure SNS message sent")
-            
-    except Exception as e:
-        print(f"Error sending failure SNS notification: {str(e)}")
 
 def get_dates():
     current_date = datetime.now()
