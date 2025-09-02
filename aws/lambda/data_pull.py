@@ -3,11 +3,19 @@ import json
 import urllib3
 from datetime import datetime
 
+s3 = boto3.client('s3')
+ssm = boto3.client('ssm')
+http = urllib3.PoolManager()
+
 def lambda_handler(event, context):
     dates_dict = get_dates()
 
-    http = urllib3.PoolManager()
-    s3 = boto3.client('s3')
+    # Get configuration
+    param_names = [
+        '/mtg/s3/buckets/primary_bucket'
+    ]
+    params = get_multiple_parameters(param_names)
+    primary_bucket = params['/mtg/s3/buckets/primary_bucket']
 
     # Fetch bulk data metadata
     url = 'https://api.scryfall.com/bulk-data'
@@ -29,7 +37,7 @@ def lambda_handler(event, context):
         raise Exception(f"Error downloading all cards data: {response.status}")
 
     # Upload data to S3
-    s3.put_object(Bucket='mtgdump', Key=f'mtg_temp_json/all_cards_{dates_dict['short_date']}.json', Body=response.data)
+    s3.put_object(Bucket=primary_bucket, Key=f'mtg_temp_json/all_cards_{dates_dict['short_date']}.json', Body=response.data)
     
     return {
         'statusCode': 200,
@@ -50,3 +58,23 @@ def get_dates():
         'short_date': current_date.strftime('%Y%m%d'),
         'formatted_date': current_date.strftime('%Y-%m-%d')
     }
+
+def get_multiple_parameters(parameter_names):
+    try:
+        response = ssm.get_parameters(
+            Names=parameter_names,
+            WithDecryption=True
+        )
+
+        # Check for missing parameters
+        if response.get('InvalidParameters'):
+            raise Exception(f"Missing parameters: {response['InvalidParameters']}")
+
+        params = {}
+        for param in response['Parameters']:
+            params[param['Name']] = param['Value']
+        
+        return params
+    except Exception as e:
+        print(f"Error getting parameters: {e}")
+        raise

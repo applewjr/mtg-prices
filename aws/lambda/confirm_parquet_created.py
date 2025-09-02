@@ -1,19 +1,22 @@
 import boto3
 from datetime import datetime
 import json
-import os
 
-def lambda_handler(event, context):
-    
-    # Initialize clients
-    s3_client = boto3.client('s3')
-    sns_client = boto3.client('sns')
-    
-    # Configuration
-    bucket_name = 'mtgdump'
-    topic_arn = os.environ.get('TOPIC_ARN')
-    
+s3_client = boto3.client('s3')
+sns_client = boto3.client('sns')
+ssm = boto3.client('ssm')
+
+def lambda_handler(event, context):   
     dates_dict = get_dates()
+
+    # Get configuration
+    param_names = [
+        '/mtg/s3/buckets/primary_bucket',
+        '/mtg/sns/status_topic_arn'
+    ]
+    params = get_multiple_parameters(param_names)
+    primary_bucket = params['/mtg/s3/buckets/primary_bucket']
+    status_topic_arn = params['/mtg/sns/status_topic_arn']
     
     # Define folder paths
     daily_parquet_key = f"mtg_parquet/year={dates_dict['year']}/month={dates_dict['month']}/day={dates_dict['day']}"
@@ -21,13 +24,13 @@ def lambda_handler(event, context):
     
     try:
         # Check daily folder
-        daily_files = list_files_in_folder(s3_client, bucket_name, daily_parquet_key)
+        daily_files = list_files_in_folder(s3_client, primary_bucket, daily_parquet_key)
         
         # Check static folder  
-        static_files = list_files_in_folder(s3_client, bucket_name, static_parquet_key)
+        static_files = list_files_in_folder(s3_client, primary_bucket, static_parquet_key)
         
         # Send notification
-        send_notification(sns_client, topic_arn, daily_files, static_files, dates_dict, daily_parquet_key, static_parquet_key)
+        send_notification(sns_client, status_topic_arn, daily_files, static_files, dates_dict, daily_parquet_key, static_parquet_key)
         
         return {
             'statusCode': 200,
@@ -40,11 +43,11 @@ def lambda_handler(event, context):
         print(f"Error: {str(e)}")
         return {'statusCode': 500, 'error': str(e)}
 
-def list_files_in_folder(s3_client, bucket_name, folder_key):
+def list_files_in_folder(s3_client, primary_bucket, folder_key):
     """List files in S3 folder"""
     try:
         response = s3_client.list_objects_v2(
-            Bucket=bucket_name,
+            Bucket=primary_bucket,
             Prefix=folder_key + '/'
         )
         
@@ -62,12 +65,19 @@ def list_files_in_folder(s3_client, bucket_name, folder_key):
         print(f"Error checking folder {folder_key}: {str(e)}")
         return []
 
-def send_notification(sns_client, topic_arn, daily_files, static_files, dates_dict, daily_key, static_key):
+def send_notification(sns_client, status_topic_arn, daily_files, static_files, dates_dict, daily_key, static_key):
     """Send simple SNS notification"""
-    
+
+    # Get configuration
+    param_names = [
+        '/mtg/s3/buckets/primary_bucket'
+    ]
+    params = get_multiple_parameters(param_names)
+    primary_bucket = params['/mtg/s3/buckets/primary_bucket']
+
     email_message = f"""MTG S3 Folder Check - {dates_dict['formatted_date']}
 
-Daily Parquet Folder (s3://mtgdump/{daily_key}/):
+Daily Parquet Folder (s3://{primary_bucket}/{daily_key}/):
   Files found: {len(daily_files)}"""
 
     for file in daily_files:
@@ -75,7 +85,7 @@ Daily Parquet Folder (s3://mtgdump/{daily_key}/):
 
     email_message += f"""
 
-Static Parquet Folder (s3://mtgdump/{static_key}/):
+Static Parquet Folder (s3://{primary_bucket}/{static_key}/):
   Files found: {len(static_files)}"""
 
     for file in static_files:
@@ -88,7 +98,7 @@ Static Parquet Folder (s3://mtgdump/{static_key}/):
 
     try:
         response = sns_client.publish(
-            TopicArn=topic_arn,
+            TopicArn=status_topic_arn,
             Message=json.dumps(message),
             MessageStructure='json'
         )
@@ -110,3 +120,23 @@ def get_dates():
         'short_date': current_date.strftime('%Y%m%d'),
         'formatted_date': current_date.strftime('%Y-%m-%d')
     }
+
+def get_multiple_parameters(parameter_names):
+    try:
+        response = ssm.get_parameters(
+            Names=parameter_names,
+            WithDecryption=True
+        )
+
+        # Check for missing parameters
+        if response.get('InvalidParameters'):
+            raise Exception(f"Missing parameters: {response['InvalidParameters']}")
+
+        params = {}
+        for param in response['Parameters']:
+            params[param['Name']] = param['Value']
+        
+        return params
+    except Exception as e:
+        print(f"Error getting parameters: {e}")
+        raise

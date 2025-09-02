@@ -4,23 +4,31 @@ import pandas as pd
 from io import StringIO
 import math
 from datetime import datetime
-import os
 
 s3 = boto3.client('s3')
+ssm = boto3.client('ssm')
 
 def lambda_handler(event, context):
     # Get the current dates
     dates = get_dates()
+
+    # Get configuration
+    param_names = [
+        '/mtg/s3/buckets/primary_bucket',
+        '/mtg/s3/buckets/output_bucket',
+        '/mtg/s3/paths/final_output_key'
+    ]
+    params = get_multiple_parameters(param_names)
+    primary_bucket = params['/mtg/s3/buckets/primary_bucket']
+    output_bucket = params['/mtg/s3/buckets/output_bucket']
+    final_output_key = params['/mtg/s3/paths/final_output_key']
     
     # Define S3 bucket and file paths
-    input_bucket = 'mtgdump'
-    output_bucket = 'mtgserve'
     input_key = f"mtg_temp_daily/{dates['short_date']}_daily_out_raw.csv"
-    output_key = os.environ.get('OUTPUT_S3_KEY')
     
     # Read the input CSV from S3
     try:
-        csv_file = s3.get_object(Bucket=input_bucket, Key=input_key)
+        csv_file = s3.get_object(Bucket=primary_bucket, Key=input_key)
         csv_content = csv_file['Body'].read().decode('utf-8')
         
         # Create a file-like object from the CSV content
@@ -33,11 +41,11 @@ def lambda_handler(event, context):
         output_csv = processed_data.to_csv(index=False)
 
         # Upload the processed CSV back to S3
-        s3.put_object(Bucket=output_bucket, Key=output_key, Body=output_csv)
+        s3.put_object(Bucket=output_bucket, Key=final_output_key, Body=output_csv)
         
         return {
             'statusCode': 200,
-            'body': json.dumps(f"Processed CSV uploaded to {output_key}")
+            'body': json.dumps(f"Processed CSV uploaded to {final_output_key}")
         }
     except Exception as e:
         return {
@@ -59,6 +67,26 @@ def get_dates():
         'short_date': current_date.strftime('%Y%m%d'),
         'formatted_date': current_date.strftime('%Y-%m-%d')
     }
+
+def get_multiple_parameters(parameter_names):
+    try:
+        response = ssm.get_parameters(
+            Names=parameter_names,
+            WithDecryption=True
+        )
+
+        # Check for missing parameters
+        if response.get('InvalidParameters'):
+            raise Exception(f"Missing parameters: {response['InvalidParameters']}")
+
+        params = {}
+        for param in response['Parameters']:
+            params[param['Name']] = param['Value']
+        
+        return params
+    except Exception as e:
+        print(f"Error getting parameters: {e}")
+        raise
 
 def process_csv(file_path):
     # Ingest the CSV into a DataFrame
