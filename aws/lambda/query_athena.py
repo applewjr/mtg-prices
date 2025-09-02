@@ -5,16 +5,22 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 s3 = boto3.client('s3')
+ssm = boto3.client('ssm')
 
 def lambda_handler(event, context):
-    # Get the current date in YYYYMMDD format
     date_info = get_dates()
     short_date = date_info['short_date']
 
+    # Get configuration
+    param_names = [
+        '/mtg/s3/buckets/primary_bucket'
+    ]
+    params = get_multiple_parameters(param_names)
+    primary_bucket = params['/mtg/s3/buckets/primary_bucket']
+
     # Define the output S3 path
-    s3_bucket = 'mtgdump'
     s3_key = f"mtg_temp_daily/{short_date}_daily_out_raw.csv"
-    output_location = f"s3://{s3_bucket}/athena_output/"
+    output_location = f"s3://{primary_bucket}/athena_output/"
 
     # SQL query to execute
     query = """
@@ -80,7 +86,7 @@ def lambda_handler(event, context):
 
     # Copy the result file to the final location with the desired name
     s3.copy_object(
-        Bucket=s3_bucket,
+        Bucket=primary_bucket,
         CopySource={'Bucket': source_bucket, 'Key': source_key},
         Key=s3_key
     )
@@ -91,7 +97,7 @@ def lambda_handler(event, context):
     # Return success message
     return {
         'statusCode': 200,
-        'body': json.dumps(f"CSV successfully uploaded to s3://{s3_bucket}/{s3_key}")
+        'body': json.dumps(f"CSV successfully uploaded to s3://{primary_bucket}/{s3_key}")
     }
 
 def get_dates():
@@ -108,3 +114,23 @@ def get_dates():
         'short_date': current_date.strftime('%Y%m%d'),
         'formatted_date': current_date.strftime('%Y-%m-%d')
     }
+
+def get_multiple_parameters(parameter_names):
+    try:
+        response = ssm.get_parameters(
+            Names=parameter_names,
+            WithDecryption=True
+        )
+
+        # Check for missing parameters
+        if response.get('InvalidParameters'):
+            raise Exception(f"Missing parameters: {response['InvalidParameters']}")
+
+        params = {}
+        for param in response['Parameters']:
+            params[param['Name']] = param['Value']
+        
+        return params
+    except Exception as e:
+        print(f"Error getting parameters: {e}")
+        raise

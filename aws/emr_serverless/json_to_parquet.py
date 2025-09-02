@@ -2,11 +2,12 @@
 import sys
 import boto3
 import json
-import os
 from datetime import datetime
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
+
+ssm = boto3.client('ssm')
 
 def main():
     # Initialize Spark Session
@@ -25,24 +26,27 @@ def main():
         .config("spark.driver.memory", "6g") \
         .config("spark.driver.cores", "1") \
         .getOrCreate()
-
-    # Optional parameter for SNS topic (can be passed from Step Function)
-    topic_arn = os.environ.get('TOPIC_ARN')
     
     # Get date info
     dates_dict = get_dates()
-    
+
+    # Get configuration
+    param_names = [
+        '/mtg/s3/buckets/primary_bucket'
+    ]
+    params = get_multiple_parameters(param_names)
+    primary_bucket = params['/mtg/s3/buckets/primary_bucket'] 
+
     # Define S3 paths
-    bucket_name = 'mtgdump'
     json_key = f"mtg_temp_json/all_cards_{dates_dict['short_date']}.json"
     
     # Define output paths for both parquet files
     daily_parquet_key = f"mtg_parquet/year={dates_dict['year']}/month={dates_dict['month']}/day={dates_dict['day']}"
     static_parquet_key = f"mtg_static_parquet/year={dates_dict['year']}/month={dates_dict['month']}/day={dates_dict['day']}"
     
-    input_path = f"s3://{bucket_name}/{json_key}"
-    daily_output_path = f"s3://{bucket_name}/{daily_parquet_key}"
-    static_output_path = f"s3://{bucket_name}/{static_parquet_key}"
+    input_path = f"s3://{primary_bucket}/{json_key}"
+    daily_output_path = f"s3://{primary_bucket}/{daily_parquet_key}"
+    static_output_path = f"s3://{primary_bucket}/{static_parquet_key}"
     
     print(f"Processing JSON from {input_path}")
     print(f"Creating daily parquet: {daily_output_path}")
@@ -84,7 +88,7 @@ def main():
         
         # Unpersist cached data
         df_raw.unpersist()
-        
+                
     except Exception as e:
         print(f"Error processing data: {str(e)}")
         raise e
@@ -147,6 +151,26 @@ def get_dates():
         'short_date': current_date.strftime('%Y%m%d'),
         'formatted_date': current_date.strftime('%Y-%m-%d')
     }
+
+def get_multiple_parameters(parameter_names):
+    try:
+        response = ssm.get_parameters(
+            Names=parameter_names,
+            WithDecryption=True
+        )
+
+        # Check for missing parameters
+        if response.get('InvalidParameters'):
+            raise Exception(f"Missing parameters: {response['InvalidParameters']}")
+
+        params = {}
+        for param in response['Parameters']:
+            params[param['Name']] = param['Value']
+        
+        return params
+    except Exception as e:
+        print(f"Error getting parameters: {e}")
+        raise
 
 if __name__ == "__main__":
     main()
