@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS mtg.mtg_prices_iceberg (
 	,pull_date DATE
 	)
 PARTITIONED BY (`pull_date`)
-LOCATION 's3://mtgdump/mtg_prices_iceberg'
+LOCATION 's3://${MTG_PRIMARY_BUCKET}/mtg_prices_iceberg'
 TBLPROPERTIES (
 	 'table_type'='iceberg'
 	,'format'='parquet'

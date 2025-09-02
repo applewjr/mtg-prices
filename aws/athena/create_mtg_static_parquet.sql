@@ -15,8 +15,8 @@ CREATE EXTERNAL TABLE IF NOT EXISTS mtg.mtg_static_parquet (
     ,pull_date STRING
     )
 STORED AS PARQUET
-LOCATION 's3://mtgdump/mtg_static_parquet/year=2024/month=08/day=09/'
+LOCATION 's3://${MTG_PRIMARY_BUCKET}/mtg_static_parquet/year=2024/month=08/day=09/'
 TBLPROPERTIES ('parquet.compression' = 'SNAPPY');
 
 ALTER TABLE {event['table']['parquet']}
-SET LOCATION 's3://mtgdump/{event['data_folder']['parquet']}/year={year}/month={month}/day={day}/';
+SET LOCATION 's3://${MTG_PRIMARY_BUCKET}/{event['data_folder']['parquet']}/year={year}/month={month}/day={day}/';

@@ -6,4 +6,4 @@ CREATE EXTERNAL TABLE IF NOT EXISTS mtg.mtg_prices_parquet (
     )
 PARTITIONED BY (year STRING, month STRING, day STRING)
 STORED AS PARQUET
-LOCATION 's3://mtgdump/mtg_parquet';
+LOCATION 's3://${MTG_PRIMARY_BUCKET}/mtg_parquet';
