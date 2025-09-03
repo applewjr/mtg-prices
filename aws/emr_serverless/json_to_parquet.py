@@ -7,7 +7,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
-ssm = boto3.client('ssm')
+ssm = boto3.client('ssm', region_name='us-west-2')
 
 def main():
     # Initialize Spark Session
