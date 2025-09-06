@@ -17,13 +17,13 @@ Production-scale financial data platform providing automated market intelligence
 
 ## Live Demos
 
-### 📊 [Streamlit Dashboard](https://mtg-price-dashboard.streamlit.app/)
+### 📊 <a href="https://mtg-price-dashboard.streamlit.app/" target="_blank" rel="noopener noreferrer">Streamlit Dashboard</a>
 Interactive price analytics dashboard with set-normalized trend analysis
 
-### 🌐 [Daily Price Tracker](https://www.jamesapplewhite.com/mtg)
+### 🌐 <a href="https://www.jamesapplewhite.com/mtg" target="_blank" rel="noopener noreferrer">Daily Price Tracker</a>
 Real-time top/bottom price movers updated daily via CloudFront
 
-### 🐦 [Twitter Bot](https://x.com/J_R_Applewhite)
+### 🐦 <a href="https://x.com/J_R_Applewhite" target="_blank" rel="noopener noreferrer">Twitter Bot</a>
 Automated daily tweets highlighting notable price changes
 
 ## Key Technologies
@@ -44,9 +44,9 @@ Automated daily tweets highlighting notable price changes
   - Stages
   - Functions
   - Procedures
-- [Streamlit](https://github.com/applewjr/mtg-price-dashboard)
+- <a href="https://github.com/applewjr/mtg-price-dashboard" target="_blank" rel="noopener noreferrer">Streamlit (Repo)</a>
 - Apache Iceberg
-- [Flask](https://github.com/applewjr/heroku_apps)
+- <a href="https://github.com/applewjr/heroku_apps" target="_blank" rel="noopener noreferrer">Flask (Repo)</a>
 - Heroku
 
 ## Architecture
@@ -81,18 +81,18 @@ Despite the event of data loss being unlikely, the damage of data loss would be 
 
 ### Frontend
 
-#### Streamlit - https://mtg-price-dashboard.streamlit.app
-- Dashboard repo: https://github.com/applewjr/mtg-price-dashboard
+#### <a href="https://mtg-price-dashboard.streamlit.app" target="_blank" rel="noopener noreferrer">Streamlit</a>
+- Dashboard repo: <a href="https://github.com/applewjr/mtg-price-dashboard" target="_blank" rel="noopener noreferrer">https://github.com/applewjr/mtg-price-dashboard</a>
 - My first of 3 frontend visualizations. Here, I present a dashboard of interesting graphs centering around card prices per set, normalized to before and after release date.
 - Source data are fully driven by Snowflake.
 - This frontend was originally designed to give the end user the ability to see the price history for any card. I have removed this option since it is an expensive feature to put into the hands of the open internet. The dashboard I have left in place is static and can be cached for 24 hours without being out of date. This leads to a maximum of 60 seconds of compute per day against Snowflake.
 
-#### Heroku App - https://www.jamesapplewhite.com/mtg
-- Flask app repo: https://github.com/applewjr/heroku_apps
+#### <a href="https://www.jamesapplewhite.com/mtg" target="_blank" rel="noopener noreferrer">Heroku App</a>
+- Flask app repo: <a href="https://github.com/applewjr/heroku_apps" target="_blank" rel="noopener noreferrer">https://github.com/applewjr/heroku_apps</a>
 - Receives the data served by CloudFront, parses the outlier rows, and presents the top and bottom 10 price increases and decreases.
 
-#### Twitter (X) Bot - https://x.com/J_R_Applewhite
-- Posting script: https://github.com/applewjr/heroku_apps/blob/main/scheduled_tasks_mtg/mtg_prices.py
+#### <a href="https://x.com/J_R_Applewhite" target="_blank" rel="noopener noreferrer">Twitter (X) Bot</a>
+- Posting script: <a href="https://github.com/applewjr/heroku_apps/blob/main/scheduled_tasks_mtg/mtg_prices.py" target="_blank" rel="noopener noreferrer">https://github.com/applewjr/heroku_apps/blob/main/scheduled_tasks_mtg/mtg_prices.py</a>
 - Each morning, a Heroku worker receives the data served by CloudFront, pulls out the top and bottom 3 outlier cards for the day, and tweets about the card.
 
 ## Other Notes/Insights
