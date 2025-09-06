@@ -28,25 +28,25 @@ Automated daily tweets highlighting notable price changes
 
 ## Key Technologies
 - AWS
-  - Lambda
+  - Lambda (Python)
   - Step Functions
   - EventBridge
   - Athena
   - S3
-  - EMR Serverless
-  - PySpark
+  - EMR Serverless (PySpark)
   - CloudFront
   - SNS
   - SQS
+  - Systems Manager
 - Snowflake
   - Pipes
   - Tasks
   - Stages
   - Functions
   - Procedures
-- Streamlit
+- [Streamlit](https://github.com/applewjr/mtg-price-dashboard)
 - Apache Iceberg
-- Flask
+- [Flask](https://github.com/applewjr/heroku_apps)
 - Heroku
 
 ## Architecture
