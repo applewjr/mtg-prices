@@ -3,6 +3,8 @@ from datetime import datetime
 import json
 import time
 
+from utils import get_dates, get_multiple_parameters
+
 athena = boto3.client('athena')
 sns_client = boto3.client('sns')
 ssm = boto3.client('ssm')
@@ -16,7 +18,7 @@ def lambda_handler(event, context):
         '/mtg/s3/buckets/primary_bucket',
         '/mtg/sns/status_topic_arn'
     ]
-    params = get_multiple_parameters(param_names)
+    params = get_multiple_parameters(param_names, ssm)
     primary_bucket = params['/mtg/s3/buckets/primary_bucket']
     status_topic_arn = params['/mtg/sns/status_topic_arn']
 
@@ -175,41 +177,6 @@ def lambda_handler(event, context):
         'iceberg_count': iceberg_count,
         'body': body_return
     }
-
-def get_dates():
-    current_date = datetime.now()
-
-    ### Temp force a specific date
-    # temp_date = '2024-12-08'
-    # current_date = datetime.strptime(temp_date, '%Y-%m-%d')
-
-    return {
-        'year': current_date.strftime('%Y'),
-        'month': current_date.strftime('%m'),
-        'day': current_date.strftime('%d'),
-        'short_date': current_date.strftime('%Y%m%d'),
-        'formatted_date': current_date.strftime('%Y-%m-%d')
-    }
-
-def get_multiple_parameters(parameter_names):
-    try:
-        response = ssm.get_parameters(
-            Names=parameter_names,
-            WithDecryption=True
-        )
-
-        # Check for missing parameters
-        if response.get('InvalidParameters'):
-            raise Exception(f"Missing parameters: {response['InvalidParameters']}")
-
-        params = {}
-        for param in response['Parameters']:
-            params[param['Name']] = param['Value']
-        
-        return params
-    except Exception as e:
-        print(f"Error getting parameters: {e}")
-        raise
 
 def wait_for_query_to_complete(query_execution_id, athena_client, check_interval=5):
     """
