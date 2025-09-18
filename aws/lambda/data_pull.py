@@ -4,6 +4,8 @@ import urllib3
 import time
 from datetime import datetime
 
+from utils import get_dates, get_multiple_parameters
+
 s3 = boto3.client('s3')
 ssm = boto3.client('ssm')
 http = urllib3.PoolManager()
@@ -15,7 +17,7 @@ def lambda_handler(event, context):
     param_names = [
         '/mtg/s3/buckets/primary_bucket'
     ]
-    params = get_multiple_parameters(param_names)
+    params = get_multiple_parameters(param_names, ssm)
     primary_bucket = params['/mtg/s3/buckets/primary_bucket']
 
     # Scryfall API headers (required)
@@ -80,38 +82,3 @@ def make_scryfall_request(url, headers, max_retries=3, backoff_factor=2):
     
     # Should not reach here, but just in case
     raise Exception(f"Failed to fetch {url} after {max_retries} attempts")
-
-def get_dates():
-    current_date = datetime.now()
-
-    ### Temp force a specific date
-    # temp_date = '2024-12-03'
-    # current_date = datetime.strptime(temp_date, '%Y-%m-%d')
-
-    return {
-        'year': current_date.strftime('%Y'),
-        'month': current_date.strftime('%m'),
-        'day': current_date.strftime('%d'),
-        'short_date': current_date.strftime('%Y%m%d'),
-        'formatted_date': current_date.strftime('%Y-%m-%d')
-    }
-
-def get_multiple_parameters(parameter_names):
-    try:
-        response = ssm.get_parameters(
-            Names=parameter_names,
-            WithDecryption=True
-        )
-
-        # Check for missing parameters
-        if response.get('InvalidParameters'):
-            raise Exception(f"Missing parameters: {response['InvalidParameters']}")
-
-        params = {}
-        for param in response['Parameters']:
-            params[param['Name']] = param['Value']
-        
-        return params
-    except Exception as e:
-        print(f"Error getting parameters: {e}")
-        raise

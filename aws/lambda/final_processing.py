@@ -5,6 +5,8 @@ from io import StringIO
 import math
 from datetime import datetime
 
+from utils import get_dates, get_multiple_parameters
+
 s3 = boto3.client('s3')
 ssm = boto3.client('ssm')
 
@@ -18,7 +20,7 @@ def lambda_handler(event, context):
         '/mtg/s3/buckets/output_bucket',
         '/mtg/s3/paths/final_output_key'
     ]
-    params = get_multiple_parameters(param_names)
+    params = get_multiple_parameters(param_names, ssm)
     primary_bucket = params['/mtg/s3/buckets/primary_bucket']
     output_bucket = params['/mtg/s3/buckets/output_bucket']
     final_output_key = params['/mtg/s3/paths/final_output_key']
@@ -52,41 +54,6 @@ def lambda_handler(event, context):
             'statusCode': 500,
             'body': json.dumps(f"Error: {str(e)}")
         }
-
-def get_dates():
-    current_date = datetime.now()
-
-    ## Temp force a specific date -- this forced date doesn't seem to work on this lambda
-    # temp_date = '2024-12-08'
-    # current_date = datetime.strptime(temp_date, '%Y-%m-%d')
-
-    return {
-        'year': current_date.strftime('%Y'),
-        'month': current_date.strftime('%m'),
-        'day': current_date.strftime('%d'),
-        'short_date': current_date.strftime('%Y%m%d'),
-        'formatted_date': current_date.strftime('%Y-%m-%d')
-    }
-
-def get_multiple_parameters(parameter_names):
-    try:
-        response = ssm.get_parameters(
-            Names=parameter_names,
-            WithDecryption=True
-        )
-
-        # Check for missing parameters
-        if response.get('InvalidParameters'):
-            raise Exception(f"Missing parameters: {response['InvalidParameters']}")
-
-        params = {}
-        for param in response['Parameters']:
-            params[param['Name']] = param['Value']
-        
-        return params
-    except Exception as e:
-        print(f"Error getting parameters: {e}")
-        raise
 
 def process_csv(file_path):
     # Ingest the CSV into a DataFrame

@@ -2,6 +2,8 @@ import boto3
 from datetime import datetime
 import json
 
+from utils import get_dates, get_multiple_parameters
+
 s3_client = boto3.client('s3')
 sns_client = boto3.client('sns')
 ssm = boto3.client('ssm')
@@ -14,7 +16,7 @@ def lambda_handler(event, context):
         '/mtg/s3/buckets/primary_bucket',
         '/mtg/sns/status_topic_arn'
     ]
-    params = get_multiple_parameters(param_names)
+    params = get_multiple_parameters(param_names, ssm)
     primary_bucket = params['/mtg/s3/buckets/primary_bucket']
     status_topic_arn = params['/mtg/sns/status_topic_arn']
     
@@ -72,7 +74,7 @@ def send_notification(sns_client, status_topic_arn, daily_files, static_files, d
     param_names = [
         '/mtg/s3/buckets/primary_bucket'
     ]
-    params = get_multiple_parameters(param_names)
+    params = get_multiple_parameters(param_names, ssm)
     primary_bucket = params['/mtg/s3/buckets/primary_bucket']
 
     email_message = f"""MTG S3 Folder Check - {dates_dict['formatted_date']}
@@ -105,38 +107,3 @@ Static Parquet Folder (s3://{primary_bucket}/{static_key}/):
         print(f"SNS message sent. Response: {response}")
     except Exception as e:
         print(f"Error sending SNS: {str(e)}")
-
-def get_dates():
-    current_date = datetime.now()
-    
-    # Uncomment to force a specific date for testing
-    # temp_date = '2024-12-08'
-    # current_date = datetime.strptime(temp_date, '%Y-%m-%d')
-    
-    return {
-        'year': current_date.strftime('%Y'),
-        'month': current_date.strftime('%m'),
-        'day': current_date.strftime('%d'),
-        'short_date': current_date.strftime('%Y%m%d'),
-        'formatted_date': current_date.strftime('%Y-%m-%d')
-    }
-
-def get_multiple_parameters(parameter_names):
-    try:
-        response = ssm.get_parameters(
-            Names=parameter_names,
-            WithDecryption=True
-        )
-
-        # Check for missing parameters
-        if response.get('InvalidParameters'):
-            raise Exception(f"Missing parameters: {response['InvalidParameters']}")
-
-        params = {}
-        for param in response['Parameters']:
-            params[param['Name']] = param['Value']
-        
-        return params
-    except Exception as e:
-        print(f"Error getting parameters: {e}")
-        raise
