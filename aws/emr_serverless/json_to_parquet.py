@@ -25,6 +25,8 @@ def main():
         .config("spark.executor.cores", "4") \
         .config("spark.driver.memory", "6g") \
         .config("spark.driver.cores", "1") \
+        .config("spark.driver.extraJavaOptions", "-Djava.net.preferIPv4Stack=true") \
+        .config("spark.executor.extraJavaOptions", "-Djava.net.preferIPv4Stack=true") \
         .getOrCreate()
     
     # Get date info
