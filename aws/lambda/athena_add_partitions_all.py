@@ -27,7 +27,9 @@ def lambda_handler(event, context):
     body_return = {}
     body_return['default'] = 'This is the default message'
 
-    # Process daily prices partition
+
+
+    ##### Process daily prices partition
     print("Adding partition for daily prices table...")
     query1 = f"""
     ALTER TABLE mtg_prices_parquet ADD IF NOT EXISTS
@@ -47,7 +49,9 @@ def lambda_handler(event, context):
     body_return['daily_prices_partition'] = response1
     body_return['daily_prices_partition_logs'] = query1_logs
 
-    # Process static data partition
+
+
+    ##### Process static data partition
     print("Adding partition for static data table...")
     query2 = f"""
     ALTER TABLE mtg_static_parquet
@@ -66,7 +70,9 @@ def lambda_handler(event, context):
     body_return['static_data_partition'] = response2
     body_return['static_data_partition_logs'] = query2_logs
 
-    # Process Iceberg merge for daily prices
+
+
+    ##### Process Iceberg merge for daily prices
     print("Merging daily prices into Iceberg table...")
     query3 = f"""
     MERGE INTO mtg_prices_iceberg AS target
@@ -99,7 +105,9 @@ def lambda_handler(event, context):
     body_return['iceberg_merge'] = response3
     body_return['iceberg_merge_logs'] = query3_logs
 
-    # Get count from Iceberg table
+
+
+    ##### Get count from Iceberg table
     print("Getting count from Iceberg table...")
     query4 = f"""
     SELECT count(*) as total_count 
@@ -128,26 +136,95 @@ def lambda_handler(event, context):
     body_return['iceberg_count_results'] = results4
     body_return['iceberg_count'] = iceberg_count
 
-    # Prepare SNS notification
+
+
+    ##### Get count from daily prices parquet table
+    print("Getting count from daily prices parquet table...")
+    query5 = f"""
+    SELECT count(*) as total_count 
+    FROM mtg_prices_parquet
+    WHERE year = '{dates_dict['year']}'
+        AND month = '{dates_dict['month']}'
+        AND day = '{dates_dict['day']}'
+    """
+
+    response5 = athena.start_query_execution(
+        QueryString=query5,
+        QueryExecutionContext={'Database': 'mtg'},
+        ResultConfiguration={'OutputLocation': s3_output}
+    )
+
+    query5_execution_id = response5['QueryExecutionId']
+    query5_logs = wait_for_query_to_complete(query5_execution_id, athena)
+    results5 = athena.get_query_results(QueryExecutionId=query5_execution_id)
+
+    parquet_prices_count = None
+    if len(results5['ResultSet']['Rows']) > 1:
+        parquet_prices_count = results5['ResultSet']['Rows'][1]['Data'][0]['VarCharValue']
+    else:
+        parquet_prices_count = '0'
+
+    body_return['parquet_prices_count_query'] = response5
+    body_return['parquet_prices_count_logs'] = query5_logs
+    body_return['parquet_prices_count_results'] = results5
+    body_return['parquet_prices_count'] = parquet_prices_count
+
+
+
+    ##### Get count from static parquet table
+    print("Getting count from static parquet table...")
+    query6 = f"""
+    SELECT count(*) as total_count 
+    FROM mtg_static_parquet
+    """
+
+    response6 = athena.start_query_execution(
+        QueryString=query6,
+        QueryExecutionContext={'Database': 'mtg'},
+        ResultConfiguration={'OutputLocation': s3_output}
+    )
+
+    query6_execution_id = response6['QueryExecutionId']
+    query6_logs = wait_for_query_to_complete(query6_execution_id, athena)
+    results6 = athena.get_query_results(QueryExecutionId=query6_execution_id)
+
+    parquet_static_count = None
+    if len(results6['ResultSet']['Rows']) > 1:
+        parquet_static_count = results6['ResultSet']['Rows'][1]['Data'][0]['VarCharValue']
+    else:
+        parquet_static_count = '0'
+
+    body_return['parquet_static_count_query'] = response6
+    body_return['parquet_static_count_logs'] = query6_logs
+    body_return['parquet_static_count_results'] = results6
+    body_return['parquet_static_count'] = parquet_static_count
+
+
+
+    ##### Prepare SNS notification
     email_message = f"""
-    MTG Data Partitioning Complete for {dates_dict['formatted_date']}
+    MTG Data Partitioning for {dates_dict['formatted_date']}
 
     Daily Prices Partition:
-    {response1}
     {query1_logs}
 
     Static Data Partition:
-    {response2}
     {query2_logs}
 
     Iceberg Merge:
-    {response3}
     {query3_logs}
 
     Iceberg Count Verification:
-    {response4}
     {query4_logs}
-    Final Iceberg Count: {iceberg_count}
+    Final Iceberg Prices Count: {iceberg_count}
+
+    Parquet Daily Prices Count Verification:
+    {query5_logs}
+    Final Parquet Prices Count: {parquet_prices_count}
+
+    Parquet Static Count Verification:
+    {query6_logs}
+    Final Parquet Static Count: {parquet_static_count}
     """
     
     sns_return = {
@@ -175,6 +252,8 @@ def lambda_handler(event, context):
         'message': 'Both partitions processed successfully',
         'date_processed': dates_dict['formatted_date'],
         'iceberg_count': iceberg_count,
+        'parquet_prices_count': parquet_prices_count,
+        'parquet_static_count': parquet_static_count,
         'body': body_return
     }
 
@@ -185,18 +264,17 @@ def wait_for_query_to_complete(query_execution_id, athena_client, check_interval
     Logs the StateChangeReason if the query fails or is canceled.
     Returns a JSON object with all printed statements.
     """
-    logs = []  # List to store all log statements
+    logs = []
 
     while True:
         response = athena_client.get_query_execution(QueryExecutionId=query_execution_id)
         status = response['QueryExecution']['Status']['State']
         state_change_reason = response['QueryExecution']['Status'].get('StateChangeReason', 'No further details')
 
-        log_statement = f"Query {query_execution_id} finished with status: {status}" if status in ['SUCCEEDED', 'FAILED', 'CANCELLED'] else f"Query {query_execution_id} is in status '{status}'. Waiting {check_interval}s..."
-        logs.append(log_statement)
-        print(log_statement)
-
         if status in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
+            log_statement = f"Query {query_execution_id} finished with status: {status}"
+            logs.append(log_statement)
+            print(log_statement)
             if status in ['FAILED', 'CANCELLED']:
                 reason_log = f"Reason: {state_change_reason}"
                 logs.append(reason_log)
