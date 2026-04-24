@@ -9,7 +9,7 @@ LEFT JOIN mtg_prices AS prices ON static.id = prices.id
 WHERE 1=1
     AND static.rarity IN ('mythic', 'rare')
     AND static.set_type IN ('expansion')
-    AND static.released_at >= '2024-08-02' -- starting with Bloomburrow
+    AND static.released_at >= DATEADD(month, -12, CURRENT_DATE)
     AND date_diff >= 1
     AND date_diff <= 300
 GROUP BY date_diff, static.set_name
