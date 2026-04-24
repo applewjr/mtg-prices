@@ -11,6 +11,10 @@ ssm = boto3.client('ssm')
 
 def lambda_handler(event, context):
 
+    # Pull source row counts from step function payload
+    source_daily_count = event.get('daily_row_count', 0)
+    source_static_count = event.get('static_row_count', 0)
+
     dates_dict = get_dates()
 
     # Get configuration
@@ -201,30 +205,61 @@ def lambda_handler(event, context):
 
 
 
+    ##### Compare source counts vs Athena counts
+    daily_prices_match = int(parquet_prices_count) == source_daily_count
+    static_match = int(parquet_static_count) == source_static_count
+    iceberg_match = int(iceberg_count) == source_daily_count  # Iceberg mirrors daily prices
+
+    count_comparison = {
+        'daily_prices': {
+            'source': source_daily_count,
+            'athena_parquet': int(parquet_prices_count),
+            'athena_iceberg': int(iceberg_count),
+            'parquet_match': daily_prices_match,
+            'iceberg_match': iceberg_match
+        },
+        'static': {
+            'source': source_static_count,
+            'athena_parquet': int(parquet_static_count),
+            'match': static_match
+        },
+        'all_counts_match': daily_prices_match and static_match and iceberg_match
+    }
+
+    body_return['count_comparison'] = count_comparison
+    print(f"Count comparison: {json.dumps(count_comparison, indent=2)}")
+
+
+
     ##### Prepare SNS notification
     email_message = f"""
-    MTG Data Partitioning for {dates_dict['formatted_date']}
+MTG Data Partitioning for {dates_dict['formatted_date']}
 
-    Daily Prices Partition:
-    {query1_logs}
+Count Verification:
+Daily Prices — Source: {source_daily_count:,} | Parquet: {int(parquet_prices_count):,} | Iceberg: {int(iceberg_count):,} | Match: {daily_prices_match and iceberg_match}
+Static Cards — Source: {source_static_count:,} | Parquet: {int(parquet_static_count):,} | Match: {static_match}
+All Counts Match: {count_comparison['all_counts_match']}
 
-    Static Data Partition:
-    {query2_logs}
+Daily Prices Partition:
+{query1_logs}
 
-    Iceberg Merge:
-    {query3_logs}
+Static Data Partition:
+{query2_logs}
 
-    Iceberg Count Verification:
-    {query4_logs}
-    Final Iceberg Prices Count: {iceberg_count}
+Iceberg Merge:
+{query3_logs}
 
-    Parquet Daily Prices Count Verification:
-    {query5_logs}
-    Final Parquet Prices Count: {parquet_prices_count}
+Iceberg Count Verification:
+{query4_logs}
+Final Iceberg Prices Count: {iceberg_count}
 
-    Parquet Static Count Verification:
-    {query6_logs}
-    Final Parquet Static Count: {parquet_static_count}
+Parquet Daily Prices Count Verification:
+{query5_logs}
+Final Parquet Prices Count: {parquet_prices_count}
+
+Parquet Static Count Verification:
+{query6_logs}
+Final Parquet Static Count: {parquet_static_count}
     """
     
     sns_return = {
@@ -251,9 +286,12 @@ def lambda_handler(event, context):
         'statusCode': 200,
         'message': 'Both partitions processed successfully',
         'date_processed': dates_dict['formatted_date'],
+        'source_daily_count': source_daily_count,
+        'source_static_count': source_static_count,
         'iceberg_count': iceberg_count,
         'parquet_prices_count': parquet_prices_count,
         'parquet_static_count': parquet_static_count,
+        'count_comparison': count_comparison,
         'body': body_return
     }
 

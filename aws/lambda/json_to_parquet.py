@@ -22,7 +22,7 @@ def lambda_handler(event, context):
     except Exception as e:
         error_message = f"Error getting SSM parameters: {str(e)}"
         print(error_message)
-        return {'statusCode': 500, 'body': json.dumps(error_message)}
+        raise
 
     # Define S3 paths
     json_key = f"mtg_temp_json/all_cards_{dates_dict['short_date']}.json"
@@ -47,7 +47,7 @@ def lambda_handler(event, context):
     except Exception as e:
         error_message = f"Error processing JSON stream: {str(e)}"
         print(error_message)
-        return {'statusCode': 500, 'body': json.dumps(error_message)}
+        raise
 
     print(f"Daily price rows: {len(daily_rows)}")
     print(f"Static card rows: {len(static_rows)}")
@@ -61,7 +61,7 @@ def lambda_handler(event, context):
     except Exception as e:
         error_message = f"Error writing daily parquet: {str(e)}"
         print(error_message)
-        return {'statusCode': 500, 'body': json.dumps(error_message)}
+        raise
 
     # Write static card parquet
     try:
@@ -72,7 +72,7 @@ def lambda_handler(event, context):
     except Exception as e:
         error_message = f"Error writing static parquet: {str(e)}"
         print(error_message)
-        return {'statusCode': 500, 'body': json.dumps(error_message)}
+        raise
 
     return {
         'statusCode': 200,
