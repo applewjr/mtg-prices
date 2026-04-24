@@ -58,8 +58,6 @@ def lambda_handler(event, context):
         write_daily_parquet(daily_rows, daily_local_path)
         s3.upload_file(daily_local_path, primary_bucket, daily_parquet_key)
         print(f"Uploaded daily parquet: s3://{primary_bucket}/{daily_parquet_key}")
-        # s3.upload_file(daily_local_path, primary_bucket_testing, daily_parquet_key)
-        # print(f"Uploaded daily parquet: s3://{primary_bucket_testing}/{daily_parquet_key}")
     except Exception as e:
         error_message = f"Error writing daily parquet: {str(e)}"
         print(error_message)
@@ -71,8 +69,6 @@ def lambda_handler(event, context):
         write_static_parquet(static_rows, static_local_path)
         s3.upload_file(static_local_path, primary_bucket, static_parquet_key)
         print(f"Uploaded static parquet: s3://{primary_bucket}/{static_parquet_key}")
-        # s3.upload_file(static_local_path, primary_bucket_testing, static_parquet_key)
-        # print(f"Uploaded static parquet: s3://{primary_bucket_testing}/{static_parquet_key}")
     except Exception as e:
         error_message = f"Error writing static parquet: {str(e)}"
         print(error_message)
