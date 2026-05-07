@@ -267,12 +267,17 @@ Final Parquet Static Count: {parquet_static_count}
         'email': email_message
     }
 
+    overall = "SUCCESS" if count_comparison['all_counts_match'] else "FAIL"
+
+    subject = f"MTG Data Partitioning {overall} - {dates_dict['formatted_date']}: (D:{daily_prices_match and iceberg_match} S:{static_match})"
+
     # Send SNS email notification
     try:
         sns_response = sns_client.publish(
             TopicArn=status_topic_arn,
             Message=json.dumps(sns_return),
-            MessageStructure='json'
+            MessageStructure='json',
+            Subject=subject
         )
 
         print(f"SNS message sent. Response: {sns_response}")

@@ -98,11 +98,18 @@ Static Parquet Folder (s3://{primary_bucket}/{static_key}/):
         'email': email_message
     }
 
+    daily_status = "Pass" if daily_files else "Fail"
+    static_status = "Pass" if static_files else "Fail"
+    overall = "SUCCESS" if daily_files and static_files else "FAIL"
+
+    subject = f"MTG Count Verification {overall} - {dates_dict['formatted_date']}: (D:{daily_status} S:{static_status})"
+
     try:
         response = sns_client.publish(
             TopicArn=status_topic_arn,
             Message=json.dumps(message),
-            MessageStructure='json'
+            MessageStructure='json',
+            Subject=subject
         )
         print(f"SNS message sent. Response: {response}")
     except Exception as e:
